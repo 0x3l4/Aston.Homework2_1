@@ -25,14 +25,13 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    public User() {
+    protected User() {
     }
 
     public User(String name, String email, int age) {
         this.name = name;
         this.email = email;
         this.age = age;
-        createdAt = LocalDateTime.now();
     }
 
     public Long getId() {

@@ -1,5 +1,6 @@
 package org.aston.dao;
 
+import org.aston.exception.DaoException;
 import org.aston.model.User;
 import org.aston.util.HibernateUtil;
 import org.hibernate.Session;
@@ -18,19 +19,26 @@ public class UserDao implements Dao<User> {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Optional<User> userOpt = Optional.ofNullable(session.get(User.class, id));
 
-            if (userOpt.isEmpty())
-                logger.info("No user with this id was found: {}", id);
-            else
-                logger.info("User was found: {}", userOpt.get());
+            logger.debug("fetched user with id {}", id);
 
             return Optional.ofNullable(session.get(User.class, id));
+        } catch (Exception ex) {
+            logger.error("Error fetching user with id={}", id, ex);
+            throw new DaoException("Error fetching user", ex);
         }
     }
 
     @Override
     public List<User> getAll() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            return session.createQuery("from User", User.class).list();
+            List<User> users = session.createQuery("from User", User.class).list();
+
+            logger.debug("fetched all users ({})", users.size());
+
+            return users;
+        } catch (Exception ex) {
+            logger.error("Error fetching all users", ex);
+            throw new DaoException("Error fetching all users", ex);
         }
     }
 
@@ -42,12 +50,14 @@ public class UserDao implements Dao<User> {
             transaction = session.beginTransaction();
             session.persist(user);
             transaction.commit();
+            logger.debug("saved user {}", user);
         }
-        catch (Exception e) {
+        catch (Exception ex) {
             if (transaction != null)
                 transaction.rollback();
 
-            e.printStackTrace();
+            logger.error("Error saving user {}", user, ex);
+            throw new DaoException("Error saving user", ex);
         }
     }
 
@@ -59,12 +69,14 @@ public class UserDao implements Dao<User> {
             transaction = session.beginTransaction();
             session.merge(user);
             transaction.commit();
+            logger.debug("updated user {}", user);
         }
-        catch (Exception e) {
+        catch (Exception ex) {
             if (transaction != null)
                 transaction.rollback();
 
-            e.printStackTrace();
+            logger.error("Error updating user {}", user, ex);
+            throw new DaoException("Error updating user", ex);
         }
     }
 
@@ -76,12 +88,15 @@ public class UserDao implements Dao<User> {
             transaction = session.beginTransaction();
             session.remove(user);
             transaction.commit();
+
+            logger.debug("deleted user {}", user);
         }
-        catch (Exception e) {
+        catch (Exception ex) {
             if (transaction != null)
                 transaction.rollback();
 
-            e.printStackTrace();
+            logger.error("Error deleting user {}", user, ex);
+            throw new DaoException("Error deleting user", ex);
         }
     }
 }

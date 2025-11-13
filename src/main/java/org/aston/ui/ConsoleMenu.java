@@ -2,14 +2,19 @@ package org.aston.ui;
 
 import org.aston.model.User;
 import org.aston.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Scanner;
 
 public class ConsoleMenu {
+    private static final Logger logger = LoggerFactory.getLogger(ConsoleMenu.class);
     private final Scanner scanner = new Scanner(System.in);
     private final UserService userService = new UserService();
 
     public void start() {
+        logger.info("Console menu started");
         while (true) {
             printMenu();
             String choice = scanner.nextLine();
@@ -22,6 +27,7 @@ public class ConsoleMenu {
                 case "5" -> deleteUser();
                 case "0" -> {
                     System.out.println("Выход...");
+                    logger.info("Menu terminated by user");
                     return;
                 }
                 default -> System.out.println("Некорректный ввод, попробуйте снова.");
@@ -51,13 +57,13 @@ public class ConsoleMenu {
         int age = Integer.parseInt(scanner.nextLine());
 
         userService.addUser(name, email, age);
-        System.out.println("Пользователь добавлен!");
+        logger.info("User creation request: {} {} {}", name, email, age);
     }
 
     private void listUsers() {
-        userService.getAllUsers().forEach(
-                u -> System.out.printf("[%d] %s (%s)%n", u.getId(), u.getName(), u.getEmail())
-        );
+        List<User> users = userService.getAllUsers();
+        users.forEach(u -> System.out.printf("[%d] %s (%s)%n", u.getId(), u.getName(), u.getEmail()));
+        logger.info("Displayed {} users", users.size());
     }
 
     private void findUser() {
@@ -67,8 +73,11 @@ public class ConsoleMenu {
         User user = userService.getUserById(id);
         if (user != null)
             System.out.printf("ID: %d | Имя: %s | Email: %s%n", user.getId(), user.getName(), user.getEmail());
+
         else
             System.out.println("Пользователь не найден.");
+
+        logger.info("Find request by id {}", id);
     }
 
     private void updateUser() {
@@ -85,6 +94,8 @@ public class ConsoleMenu {
         int age = Integer.parseInt(scanner.nextLine());
 
         boolean updated = userService.updateUser(id, name, email, age);
+
+        logger.info("Update request for id {}", id);
         System.out.println(updated ? "Обновлено!" : "Пользователь не найден.");
     }
 
@@ -93,6 +104,8 @@ public class ConsoleMenu {
         long id = Long.parseLong(scanner.nextLine());
 
         boolean deleted = userService.deleteUser(id);
+
+        logger.info("Delete request for id {}", id);
         System.out.println(deleted ? "Удалено." : "Пользователь не найден.");
     }
 }
