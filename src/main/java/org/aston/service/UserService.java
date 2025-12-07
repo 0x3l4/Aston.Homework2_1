@@ -1,106 +1,80 @@
 package org.aston.service;
 
-import org.aston.dao.UserDao;
-import org.aston.dao.UserDaoImpl;
-import org.aston.exception.DaoException;
-import org.aston.model.User;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.aston.dto.*;
+import org.aston.entity.User;
+import org.aston.exception.UserNotFoundException;
+import org.aston.mapper.UserMapper;
+import org.aston.repository.UserRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
+@Slf4j
+@Service
+@RequiredArgsConstructor
 public class UserService {
-    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
-    private final UserDao userDao = new UserDaoImpl();
 
-    public void addUser(String name, String email, int age) {
-        User user = new User(name, email, age);
+    private final UserRepository repository;
+    private final UserMapper mapper;
 
-        try {
-            userDao.save(user);
-            logger.info("Business: saved user with id {}", user.getId());
+    public List<UserDto> getAll() {
+        List<User> users = repository.findAll();
 
-        } catch (DaoException ex) {
-            logger.error("Business: failed to add user with id {}", user.getId(), ex);
+        if (users.isEmpty()) {
+            log.warn("Business: no users found");
+        } else {
+            log.info("Business: fetched {} users", users.size());
         }
+
+        return users.stream()
+                .map(mapper::toDto)
+                .toList();
     }
 
-    public List<User> getAllUsers() {
-        try {
-            List<User> users = userDao.getAll();
+    public UserDto getById(Long id) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Business: no user found with id {}", id);
+                    return new UserNotFoundException(id);
+                });
 
-            if (users.size() > 0)
-                logger.info("Business: fetched all users ({})", users.size());
-            else
-                logger.warn("Business: no user fetched ");
-
-            return users;
-        } catch (DaoException ex) {
-            logger.error("Business: failed to fetch all users", ex);
-            return null;
-        }
+        log.info("Business: fetched user with id {}", id);
+        return mapper.toDto(user);
     }
 
-    public User getUserById(Long id) {
-        try {
-            Optional<User> userOpt = userDao.get(id);
+    public UserDto create(CreateUserRequest dto) {
+        User user = mapper.toEntity(dto);
+        User saved = repository.save(user);
 
-            if (userOpt.isEmpty()) {
-                logger.warn("Business: no user fetched with id {}", id);
-                return null;
-            }
-
-            User user = userOpt.get();
-            logger.info("Business: fetched user with id {}", id);
-
-            return user;
-        } catch (DaoException ex) {
-            logger.error("Business: failed to fetch user with id {}", id, ex);
-            return null;
-        }
+        log.info("Business: created user with id {}", saved.getId());
+        return mapper.toDto(saved);
     }
 
-    public boolean updateUser(Long id, String name, String email, int age) {
-        try {
-            Optional<User> userOpt = userDao.get(id);
-            if (userOpt.isEmpty()) {
-                logger.warn("Business: no user to update with id {}", id);
-                return false;
-            }
+    public UserDto update(Long id, UpdateUserRequest dto) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Business: no user found to update with id {}", id);
+                    return new UserNotFoundException(id);
+                });
 
-            User user = userOpt.get();
+        mapper.updateEntityFromDto(dto, user);
 
-            if (name != null && !name.isBlank()) user.setName(name);
-            if (email != null && !email.isBlank()) user.setEmail(email);
-            if (age > 0) user.setAge(age);
+        User updated = repository.save(user);
+        log.info("Business: updated user with id {}", updated.getId());
 
-            userDao.update(user);
-            logger.info("Business: updated user with id {}", user.getId());
-
-            return true;
-        } catch (DaoException ex) {
-            logger.error("Business: failed to update user with id {}", id, ex);
-            return false;
-        }
+        return mapper.toDto(updated);
     }
 
-    public boolean deleteUser(Long id) {
-        try {
-            Optional<User> userOpt = userDao.get(id);
+    public void delete(Long id) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Business: no user found to delete with id {}", id);
+                    return new UserNotFoundException(id);
+                });
 
-            if (userOpt.isEmpty()) {
-                logger.warn("Business: no user to delete with id {}", id);
-                return false;
-            }
-
-            userDao.delete(userOpt.get());
-            logger.info("Business: deleted user with id {}", id);
-
-            return true;
-        } catch (DaoException ex) {
-            logger.error("Business: failed to delete user with id {}", id, ex);
-            return false;
-        }
+        repository.delete(user);
+        log.info("Business: deleted user with id {}", id);
     }
 }
